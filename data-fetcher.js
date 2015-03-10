@@ -55,7 +55,7 @@ var main = function() {
 
   default_opts = {
     'host': 'erikberg.com',
-    'path': '/nba/boxscore/20120621-oklahoma-city-thunder-at-miami-heat.json',
+    'path': '/events.json?date=20150307&sport=nba',
     'headers': {
         'Accept-Encoding': 'gzip',
         'Authorization': 'Bearer ' + ACCESS_TOKEN,
@@ -89,10 +89,23 @@ var main = function() {
             process.exit(1);
           }
           console.log('Decoded');
-         
-          var writeStream = fs.createWriteStream('output.js');
-          writeStream.pipe(decoded.toString());
           
+          var results = decoded.toString();
+          
+          fs.writeFile('output.js', 'var events = ', function(err) {
+            if (err) {
+              return console.log(err);
+            }
+          });
+
+
+          fs.appendFile('output.js', results, function(err) {
+            if (err) {
+              return console.log(err);
+            }
+          });
+          
+
         });
       } else {
         console.log('Regular data');
