@@ -7,45 +7,45 @@ var zlib = require('zlib');
 var ACCESS_TOKEN = 'a244603e-e107-43ea-a2c2-296cd74fe9d8';
 var USER_AGENT = 'mybot/0.1-(ansel01@gmail.com)';
 
-// var buildURL = function(host, sport, method, id, format, params) {
-//   var ary = [sport, method, id];
-//   var path;
-//   var url;
-//   var param_list = [];
-//   var param_string;
-//   var key;
+var buildURL = function(sport, method, id, format, params) {
+  var ary = [sport, method, id];
+  var path;
+  var url;
+  var param_list = [];
+  var param_string;
+  var key;
 
-//   path = ary.filter(function (element) {
-//     return element !== undefined;
-//   }).join('/');
-//   url = 'https://' + host + '/' + path + '.' + format;
+  path = ary.filter(function (element) {
+    return element !== undefined;
+  }).join('/');
+  url = '/' + path + '.' + format;
 
-//   // check for parameters and create parameter string
-//   if (params) {
-//     for (key in params) {
-//       if (params.hasOwnProperty(key)) {
-//         param_list.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
-//       }
-//     }
-//     param_string = param_list.join('&');
-//     if (param_list.length > 0) {
-//       url += '?' + param_string;
-//     }
-//   }
-//   return url;
-// }
+  // check for parameters and create parameter string
+  if (params) {
+    for (key in params) {
+      if (params.hasOwnProperty(key)) {
+        param_list.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
+      }
+    }
+    param_string = param_list.join('&');
+    if (param_list.length > 0) {
+      url += '?' + param_string;
+    }
+  }
+  return url;
+}
 
 var main = function() {
 
-  var host = 'erikberg.com';
-  var sport = undefined;
-  var method = 'events';
-  var id = 'undefined';
-  var format = 'json';
-  var params = {
-    'sport' : 'nba',
-    'date': '20130414'
-  }
+  // var host = 'erikberg.com';
+  // var sport = undefined;
+  // var method = 'events';
+  // var id = 'undefined';
+  // var format = 'json';
+  // var params = {
+  //   'sport' : 'nba',
+  //   'date': '20130414'
+  // }
 
   var url; 
   var default_opts;
@@ -53,9 +53,12 @@ var main = function() {
   var buffer;
   var encoding;
 
+  url = buildURL('nba', 'boxscore', '20120621-oklahoma-city-thunder-at-miami-heat', 'json');
+  console.log(url);
+
   default_opts = {
     'host': 'erikberg.com',
-    'path': '/events.json?date=20150307&sport=nba',
+    'path': url,
     'headers': {
         'Accept-Encoding': 'gzip',
         'Authorization': 'Bearer ' + ACCESS_TOKEN,
