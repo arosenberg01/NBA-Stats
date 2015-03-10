@@ -5,7 +5,7 @@ var fs = require('fs');
 var zlib = require('zlib');
 
 var ACCESS_TOKEN = 'a244603e-e107-43ea-a2c2-296cd74fe9d8';
-var USER_AGENT = 'mybot/0.1-(ansel01@gmail.com)';
+var USER_AGENT = 'mybot/1.0 (ansel01@gmail.com)';
 
 var buildURL = function(sport, method, id, format, params) {
   var ary = [sport, method, id];
@@ -37,55 +37,46 @@ var buildURL = function(sport, method, id, format, params) {
 
 var main = function() {
 
-  // var host = 'erikberg.com';
-  // var sport = undefined;
-  // var method = 'events';
-  // var id = 'undefined';
-  // var format = 'json';
-  // var params = {
-  //   'sport' : 'nba',
-  //   'date': '20130414'
-  // }
+  // set arguments for API target
+  var sport = undefined;
+  var method = 'events';
+  var id = undefined;
+  var format = 'json';
+  var params = {
+    'sport' : 'nba',
+    'date': '20130414'
+  }
 
-  var url; 
-  var default_opts;
-  var chunks;
-  var buffer;
-  var encoding;
-
-  url = buildURL('nba', 'boxscore', '20120621-oklahoma-city-thunder-at-miami-heat', 'json');
+  var url = buildURL(sport, method, id, format, params);
   console.log(url);
 
-  default_opts = {
+  var default_opts = {
     'host': 'erikberg.com',
     'path': url,
     'headers': {
         'Accept-Encoding': 'gzip',
         'Authorization': 'Bearer ' + ACCESS_TOKEN,
-        'User-Agent': 'mybot/0.1 (ansel01@gmail.com)'
+        'User-Agent': 'mybot/1.0 (ansel01@gmail.com)'
     }
   };
 
-  // url = buildURL(host, sport, method, id, format, params);
-  // 'https://erikberg.com/nba/boxscore/20120621-oklahoma-city-thunder-at-miami-heat.json'
-
   https.get(default_opts, function(res) {
-    chunks = [];
+    var chunks = [];
     res.on('data', function (chunk) {
       chunks.push(chunk);
     });
     res.on('end', function() {
-      // if (res.statusCode !== 200) {
-      //   // handle error...
-      //   console.log(res.statusCode);
-      //   console.warn("Server did not return a 200 response!\n" + chunks.join(''));
-      //   process.exit(1);
-      // }
+      if (res.statusCode !== 200) {
+        // handle error...
+        console.log(res.statusCode);
+        console.warn("Server did not return a 200 response!\n" + chunks.join(''));
+        process.exit(1);
+      }
 
-      encoding = res.headers['content-encoding'];
+      var encoding = res.headers['content-encoding'];
       if (encoding === 'gzip') {
         console.log('Encoded with gzip');
-        buffer = Buffer.concat(chunks);
+        var buffer = Buffer.concat(chunks);
         zlib.gunzip(buffer, function (err, decoded) {
           if (err) {
             console.warn("Error trying to decompress data: " + err.message);
@@ -95,12 +86,11 @@ var main = function() {
           
           var results = decoded.toString();
           
-          fs.writeFile('output.js', 'var events = ', function(err) {
-            if (err) {
-              return console.log(err);
-            }
-          });
-
+          // fs.writeFile('output.js', 'var events = ', function(err) {
+          //   if (err) {
+          //     return console.log(err);
+          //   }
+          // });
 
           fs.appendFile('output.js', results, function(err) {
             if (err) {
@@ -108,7 +98,6 @@ var main = function() {
             }
           });
           
-
         });
       } else {
         console.log('Regular data');
