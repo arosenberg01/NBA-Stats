@@ -7,20 +7,21 @@ var zlib = require('zlib');
 var ACCESS_TOKEN = 'a244603e-e107-43ea-a2c2-296cd74fe9d8';
 var USER_AGENT = 'mybot/1.0 (ansel01@gmail.com)';
 
+// Build path for API request destination
 var buildURL = function(sport, method, id, format, params) {
-  var ary = [sport, method, id];
+  var array = [sport, method, id];
   var path;
   var url;
   var param_list = [];
   var param_string;
   var key;
 
-  path = ary.filter(function (element) {
+  path = array.filter(function (element) {
     return element !== undefined;
   }).join('/');
   url = '/' + path + '.' + format;
 
-  // check for parameters and create parameter string
+  // Check for parameters and create parameter string
   if (params) {
     for (key in params) {
       if (params.hasOwnProperty(key)) {
@@ -37,78 +38,84 @@ var buildURL = function(sport, method, id, format, params) {
 
 var main = function() {
 
-  // set arguments for API target
-  var sport = undefined;
-  var method = 'events';
-  var id = undefined;
-  var format = 'json';
-  var params = {
-    'sport' : 'nba',
-    'date': '20130414'
-  }
+  // Initialize arguments for API URL building
+  var urlElements = {
+    sport: undefined,
+    method: 'events',
+    id: undefined,
+    format:'json',
+    params: {
+      'sport' : 'nba',
+      'date': '20130414'
+    } 
+  };
 
-  var url = buildURL(sport, method, id, format, params);
-  console.log(url);
-
+  // Set options object for http.get argument
   var default_opts = {
     'host': 'erikberg.com',
-    'path': url,
+    'path': '/',
     'headers': {
         'Accept-Encoding': 'gzip',
         'Authorization': 'Bearer ' + ACCESS_TOKEN,
-        'User-Agent': 'mybot/1.0 (ansel01@gmail.com)'
+        'User-Agent': USER_AGENT
     }
   };
 
-  https.get(default_opts, function(res) {
-    var chunks = [];
-    res.on('data', function (chunk) {
-      chunks.push(chunk);
-    });
-    res.on('end', function() {
-      if (res.statusCode !== 200) {
-        // handle error...
-        console.log(res.statusCode);
-        console.warn("Server did not return a 200 response!\n" + chunks.join(''));
-        process.exit(1);
-      }
+  // Request data from API target
+  var requestData = function(urlElements) {
 
-      var encoding = res.headers['content-encoding'];
-      if (encoding === 'gzip') {
-        console.log('Encoded with gzip');
-        var buffer = Buffer.concat(chunks);
-        zlib.gunzip(buffer, function (err, decoded) {
-          if (err) {
-            console.warn("Error trying to decompress data: " + err.message);
-            process.exit(1);
-          }
-          console.log('Decoded');
-          
-          var results = decoded.toString();
-          
-          // fs.writeFile('output.js', 'var events = ', function(err) {
-          //   if (err) {
-          //     return console.log(err);
-          //   }
-          // });
+    default_opts.path = buildURL(urlElements.sport, urlElements.method, urlElements.id, urlElements.format, urlElements.params);
+    console.log('\nREQUEST URL\nhttps://' + default_opts.host + default_opts.path + '\n\nEVENT IDS');
 
-          fs.appendFile('output.js', results, function(err) {
+    https.get(default_opts, function(res) {
+      var chunks = [];
+      res.on('data', function (chunk) {
+        chunks.push(chunk);
+      });
+      res.on('end', function() {
+        if (res.statusCode !== 200) {
+          // Handle error...
+          console.log(res.statusCode);
+          console.warn("Server did not return a 200 response!\n" + chunks.join(''));
+          process.exit(1);
+        }
+
+        var encoding = res.headers['content-encoding'];
+        if (encoding === 'gzip') {
+          var buffer = Buffer.concat(chunks);
+          zlib.gunzip(buffer, function (err, decoded) {
             if (err) {
-              return console.log(err);
+              return console.log(err)
+              console.warn("Error trying to decompress data: " + err.message);
+              process.exit(1);
             }
-          });
-          
-        });
-      } else {
-        console.log('Regular data');
-        console.log(chunks.join(''));
-      }
-    });
+            
+            var results = decoded.toString();
+            var parsedResults = JSON.parse(results);
+            var eventIds = [];
+            for (var i = 0; i < parsedResults.event.length; i++) {
+              eventIds.push(parsedResults.event[i].event_id);
+            }
+            console.log(eventIds);
 
-  }).on('error', function (err) {
-    console.warn("Error trying to contact server: " + err.message);
-    process.exit(1);
-  });
+            fs.appendFile('output.js', JSON.stringify(eventIds), function(err) {
+              if (err) {
+                return console.log(err);
+              }
+            });
+            
+          });
+        } else {
+          console.log('Not encoded: ' + chunks.join(''));
+        }
+      }); 
+    }).on('error', function (err) {
+      console.warn("Error trying to contact server: " + err.message);
+      process.exit(1);
+    });
+  }
+
+  requestData(urlElements);
 };
 
 main();
