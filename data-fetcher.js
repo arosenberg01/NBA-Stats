@@ -3,6 +3,8 @@
 var https = require('https');
 var fs = require('fs');
 var zlib = require('zlib');
+var events = require('events');
+var eventEmitter = new events.EventEmitter();
 var mongoose = require('mongoose');
 var Day = require('./test-schema');
 
@@ -76,9 +78,10 @@ var main = function() {
   var requestData = function(urlElements) {
 
     default_opts.path = buildURL(urlElements.sport, urlElements.method, urlElements.id, urlElements.format, urlElements.params);
-    console.log('--------------------------------------------------------------');
+    console.log('\n==============================================================');
+    console.log('==============================================================');
     console.log('\nREQUEST URL\nhttps://' + default_opts.host + default_opts.path);
-    console.log('\n--------------------------------------------------------------');
+    console.log('\n--------------------------------------------------------------\n');
 
     https.get(default_opts, function(res) {
       var chunks = [];
@@ -95,6 +98,7 @@ var main = function() {
 
         var encoding = res.headers['content-encoding'];
         if (encoding === 'gzip') {
+          console.log('DECODING...')
           var buffer = Buffer.concat(chunks);
           zlib.gunzip(buffer, function (err, decoded) {
             if (err) {
@@ -102,10 +106,12 @@ var main = function() {
               console.warn("Error trying to decompress data: " + err.message);
               process.exit(1);
             }
+
+            console.log('DECODED\n');
             
             var results = decoded.toString();
             var parsedResults = JSON.parse(results);
-            console.log('urlElements.method: ' + urlElements.method);
+            // console.log('urlElements.method: ' + urlElements.method);
 
             if (urlElements.method === 'events') {
               var eventIds = [];
@@ -129,21 +135,24 @@ var main = function() {
               if (err) {
                 console.log(err)
               } else {
-                console.log('Data: ' + data);
-  
+                console.log('SAVED TO DB\n' + data);
+                console.log('\n--------------------------------------------------------------\n');
+                // Day.findOne({date: parseInt(urlElements.params.date)}, 'date', function(err, day)     
+                // });
+
+                dateNum = parseInt(urlElements.params.date);
+                dateNum--;
+
+                if (dateNum > 20150314) {
+                  eventEmitter.emit('goToNext');
+                } else {
+                  eventEmitter.emit('stopBot');
+                }
+
               }
             });
-
-
-
-
-            fs.appendFile('output.js', JSON.stringify(eventIds), function(err) {
-              if (err) {
-                return console.log(err);
-              }
-            });
-            
           });
+
         } else {
           console.log('Not encoded: ' + chunks.join(''));
         }
@@ -151,22 +160,24 @@ var main = function() {
     }).on('error', function (err) {
       console.warn("Error trying to contact server: " + err.message);
       process.exit(1);
-    });
+    }); 
 
-    setTimeout(function() {
-      dateNum = parseInt(urlElements.params.date);
-      console.log(typeof dateNum + ": " + dateNum);
-      if (dateNum > 20150312) {
-        dateNum--;
+    eventEmitter.on('goToNext', function() {
+      setTimeout(function() {
         urlElements.params.date = dateNum.toString();
         requestData(urlElements);
-      } else {
-        console.log('DONE FETCHING DATA');
-        console.log('(Last day: ' + urlElements.params.date + ')');
-        mongoose.disconnect();
-      }
-    }, 12000);
+      }, 12000);
+    });
 
+    eventEmitter.on('stopBot', function() {
+      console.log('DONE WORKING');
+      console.log('\n==============================================================');
+      console.log('==============================================================\n');
+      // console.log('(Last day: ' + urlElements.params.date + ')');
+      mongoose.disconnect();
+    });
+
+    
   }
   
   
