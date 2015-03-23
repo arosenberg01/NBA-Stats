@@ -47,7 +47,6 @@ var buildURL = function(sport, method, id, format, params) {
   return url;
 }
 
-
 var main = function() {
 
   // Initialize arguments for API URL building
@@ -111,20 +110,16 @@ var main = function() {
             
             var results = decoded.toString();
             var parsedResults = JSON.parse(results);
-            // console.log('urlElements.method: ' + urlElements.method);
 
             if (urlElements.method === 'events') {
               var eventIds = [];
-
               for (var i = 0; i < parsedResults.event.length; i++) {
                 eventIds.push(parsedResults.event[i].event_id);
               }
-       
             } else if (urlElements.method === 'boxscore') {
               for (var key in parsedResults) {
                 console.log(key);
               }
-
             }
             
             var test =  new Day();
@@ -140,10 +135,10 @@ var main = function() {
                 // Day.findOne({date: parseInt(urlElements.params.date)}, 'date', function(err, day)     
                 // });
 
-                dateNum = parseInt(urlElements.params.date);
+                dateNum = test.date;
                 dateNum--;
 
-                if (dateNum > 20150314) {
+                if (dateNum > 20150312) {
                   eventEmitter.emit('goToNext');
                 } else {
                   eventEmitter.emit('stopBot');
@@ -162,24 +157,22 @@ var main = function() {
       process.exit(1);
     }); 
 
-    eventEmitter.on('goToNext', function() {
-      setTimeout(function() {
-        urlElements.params.date = dateNum.toString();
-        requestData(urlElements);
-      }, 12000);
-    });
-
-    eventEmitter.on('stopBot', function() {
-      console.log('DONE WORKING');
-      console.log('\n==============================================================');
-      console.log('==============================================================\n');
-      // console.log('(Last day: ' + urlElements.params.date + ')');
-      mongoose.disconnect();
-    });
-
-    
   }
   
+  eventEmitter.on('goToNext', function() {
+    setTimeout(function() {
+      urlElements.params.date = dateNum.toString();
+      requestData(urlElements);
+    }, 12000);
+  });
+
+  eventEmitter.on('stopBot', function() {
+    console.log('DONE WORKING');
+    console.log('\n==============================================================');
+    console.log('==============================================================\n');
+    // console.log('(Last day: ' + urlElements.params.date + ')');
+    mongoose.disconnect();
+  });
   
   // GET /sport/boxscore/event_id.format
   // https://erikberg.com/nba/boxscore/20120621-oklahoma-city-thunder-at-miami-heat.json
@@ -196,18 +189,3 @@ var main = function() {
 
 
 main();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
