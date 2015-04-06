@@ -5,22 +5,27 @@ var fs = require('fs');
 var zlib = require('zlib');
 var events = require('events');
 var eventEmitter = new events.EventEmitter();
-var mongoose = require('mongoose');
-var Day = require('./test-schema');
+var moment = require('moment');
+var MongoClient = require('mongodb').MongoClient;
+var assert = require('assert');
 
-var ACCESS_TOKEN = 'a244603e-e107-43ea-a2c2-296cd74fe9d8';
+var ACCESS_TOKEN = 'c5ef8296-2f3d-4b01-9c48-e6b41f49a4f1';
 var USER_AGENT = 'mybot/1.0 (ansel01@gmail.com)';
 
-var db = mongoose.connect('mongodb://localhost/nba');
-var dateNum;
+MongoClient.connect('mongodb://localhost/nba', function(err, db) {
+  assert.equal(null, err);
+  console.log('\n==============================================================\n');
+  console.log("Connected correctly to server");
+  console.log('\n==============================================================\n');
+  
 
-// mongoose.connection.once('connected', function() {
-//   console.log("Connected to database")
-// });
+  db.close();
+});
+
 
 // Build path for API request destination
-var buildURL = function(sport, method, id, format, params) {
-  var array = [sport, method, id];
+var buildURL = function(urlObj) {
+  var array = [urlObj.sport, urlObj.method, urlObj.id];
   var path;
   var url;
   var param_list = [];
@@ -30,13 +35,13 @@ var buildURL = function(sport, method, id, format, params) {
   path = array.filter(function (element) {
     return element !== undefined;
   }).join('/');
-  url = '/' + path + '.' + format;
+  url = '/' + path + '.' + urlObj.format;
 
   // Check for parameters and create parameter string
-  if (params) {
-    for (key in params) {
-      if (params.hasOwnProperty(key)) {
-        param_list.push(encodeURIComponent(key) + '=' + encodeURIComponent(params[key]));
+  if (urlObj.params) {
+    for (key in urlObj.params) {
+      if (urlObj.params.hasOwnProperty(key)) {
+        param_list.push(encodeURIComponent(key) + '=' + encodeURIComponent(urlObj.params[key]));
       }
     }
     param_string = param_list.join('&');
@@ -62,7 +67,7 @@ var main = function() {
   };
 
   // Set options object for http.get argument
-  var default_opts = {
+  var defaultOpts = {
     'host': 'erikberg.com',
     'path': '/',
     'headers': {
@@ -71,18 +76,52 @@ var main = function() {
         'User-Agent': USER_AGENT
     }
   };
-
   
-  // Request data from API target
-  var requestData = function(urlElements) {
+  // var firstDay = moment("20142810", "YYYYDDMM"); // Oct 28, 2014
+  // var lastDay = moment("20151504", "YYYYDDMM"); // April 15, 2015
 
-    default_opts.path = buildURL(urlElements.sport, urlElements.method, urlElements.id, urlElements.format, urlElements.params);
+  // Get date in same format as URL parameter
+  // moment().format("YYYYDDMM");
+
+  // Check dates with moment.js to see if more API requests are necessary
+  // var checkForNewGames = function(eventRequestDate) {
+  //   if (eventRequestDate.isBefore(TODAY) && eventRequestDate.isBefore(lastDay) && eventRequestDate.isAfter(DAY BEFORE FIRST GAME)) {
+  //    // set new date and get new event ids
+  //     var nextDay = eventRequestDate.add(1, 'days');
+  //     urlElments.params.date = nextDay.format("YYYYDDMM");
+  //     eventEmitter.emit('getMoreData');
+  //   } else {
+  //     // don't get new event ids, stop bot
+  //     eventEmitter.emit('stopBot');
+  //   }
+
+  // };
+
+  eventEmitter.on('getMoreData', function() {
+    setTimeout(function() {
+      requestData(urlElements);
+    }, 12000);
+  });
+
+  eventEmitter.on('stopBot', function() {
+    console.log('DONE WORKING');
+    console.log('\n==============================================================');
+    console.log('==============================================================\n');
+    mongoose.disconnect();
+  });
+
+  // Request data from API target
+  var requestData = function(urlObj) {
+
+    defaultOpts.path = buildURL(urlObj);
+
     console.log('\n==============================================================');
     console.log('==============================================================');
-    console.log('\nREQUEST URL\nhttps://' + default_opts.host + default_opts.path);
+    console.log('\nREQUEST URL\nhttps://' + defaultOpts.host + defaultOpts.path);
     console.log('\n--------------------------------------------------------------\n');
 
-    https.get(default_opts, function(res) {
+    https.get(
+      defaultOpts, function(res) {
       var chunks = [];
       res.on('data', function (chunk) {
         chunks.push(chunk);
@@ -97,6 +136,7 @@ var main = function() {
 
         var encoding = res.headers['content-encoding'];
         if (encoding === 'gzip') {
+          
           console.log('DECODING...')
           var buffer = Buffer.concat(chunks);
           zlib.gunzip(buffer, function (err, decoded) {
@@ -105,49 +145,10 @@ var main = function() {
               console.warn("Error trying to decompress data: " + err.message);
               process.exit(1);
             }
-
             console.log('DECODED\n');
-            
-            var results = decoded.toString();
-            var parsedResults = JSON.parse(results);
+            processData(decoded);
 
-            if (urlElements.method === 'events') {
-              var eventIds = [];
-              for (var i = 0; i < parsedResults.event.length; i++) {
-                eventIds.push(parsedResults.event[i].event_id);
-              }
-            } else if (urlElements.method === 'boxscore') {
-              for (var key in parsedResults) {
-                console.log(key);
-              }
-            }
-            
-            var test =  new Day();
-            test.date = parseInt(urlElements.params.date);
-            test.games = eventIds;
-
-            test.save(function(err, data) {
-              if (err) {
-                console.log(err)
-              } else {
-                console.log('SAVED TO DB\n' + data);
-                console.log('\n--------------------------------------------------------------\n');
-                // Day.findOne({date: parseInt(urlElements.params.date)}, 'date', function(err, day)     
-                // });
-
-                dateNum = test.date;
-                dateNum--;
-
-                if (dateNum > 20150312) {
-                  eventEmitter.emit('goToNext');
-                } else {
-                  eventEmitter.emit('stopBot');
-                }
-
-              }
-            });
           });
-
         } else {
           console.log('Not encoded: ' + chunks.join(''));
         }
@@ -157,35 +158,35 @@ var main = function() {
       process.exit(1);
     }); 
 
-  }
+  };
   
-  eventEmitter.on('goToNext', function() {
-    setTimeout(function() {
-      urlElements.params.date = dateNum.toString();
-      requestData(urlElements);
-    }, 12000);
-  });
+  // process response from http.get request
+  var processData = function(data) {
+    var results = data.toString();
 
-  eventEmitter.on('stopBot', function() {
-    console.log('DONE WORKING');
-    console.log('\n==============================================================');
-    console.log('==============================================================\n');
-    // console.log('(Last day: ' + urlElements.params.date + ')');
-    mongoose.disconnect();
-  });
-  
-  // GET /sport/boxscore/event_id.format
-  // https://erikberg.com/nba/boxscore/20120621-oklahoma-city-thunder-at-miami-heat.json
+    var parsedResults = JSON.parse(results);
+
+    if (urlElements.method === 'events') {
+      var eventIds = [];
+      for (var i = 0; i < parsedResults.event.length; i++) {
+        eventIds.push(parsedResults.event[i].event_id);
+      }
+    } else if (urlElements.method === 'boxscore') {
+      for (var key in parsedResults) {
+        console.log(key);
+      }
+    }
+    
+
+  };
 
   requestData(urlElements);
 
-  
    // urlElements.sport = 'nba';
    //  urlElements.method = 'boxscore';
    //  urlElements.id = eventIds[0];
    //  urlElements.params = {};
 
 };
-
 
 main();
