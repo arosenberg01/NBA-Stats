@@ -51,7 +51,11 @@ var main = function() {
     }
   };
 
-  // // Check dates with moment.js to see if more API requests are necessary
+  /*
+  Check dates with moment.js to see if more API requests are necessary
+  @param prevEventDate date of previous event
+  @return void
+  */
   var checkForNewGames = function(prevEventDate) {
     var todaysDate = moment();
     nextDate = prevEventDate.add(1, 'days');
